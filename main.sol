@@ -92,3 +92,50 @@ contract SpaceCoder {
     // -------------------------------------------------------------------------
     modifier onlyTrajectoryGuard() {
         if (msg.sender != trajectoryGuard) revert TrajectoryDenied();
+        _;
+    }
+
+    modifier onlyMissionVault() {
+        if (msg.sender != missionVault) revert InvalidVault();
+        _;
+    }
+
+    modifier whenOrbitNotPaused() {
+        if (orbitPaused) revert OrbitPaused();
+        _;
+    }
+
+    modifier nonReentrant() {
+        if (_locked != 0) revert ReentrantCall();
+        _locked = 1;
+        _;
+        _locked = 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructor (all addresses and params populated; no caller input required)
+    // -------------------------------------------------------------------------
+    constructor() {
+        missionVault = 0x7B3c9E2f1A4d6F8b0C2e5A7D9f1B3c5E7a9D1f;
+        trajectoryGuard = 0x8C4d0F3a2B5e7D9f1A3c6E8b0D2f4A6c8E1a3;
+        rewardTreasury = 0x9D5e1A4b3C6f8E0a2D4b6F8c0E2a4C6e8A1c3;
+        genesisBlock = block.number;
+        genesisTimestamp = block.timestamp;
+        maxMissionsPerCoder = 120;
+        cooldownBlocks = 5;
+        missionFeeWei = 0.001 ether;
+        minDifficulty = 1;
+        maxDifficulty = 10;
+        orbitDomain = keccak256(
+            abi.encodePacked(
+                block.chainid,
+                address(this),
+                "SpaceCoder_Orbit_v2",
+                genesisTimestamp,
+                block.prevrandao
+            )
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // External: mission logging (anyone when not paused, subject to limits)
