@@ -139,3 +139,50 @@ contract SpaceCoder {
 
     // -------------------------------------------------------------------------
     // External: mission logging (anyone when not paused, subject to limits)
+    // -------------------------------------------------------------------------
+    function logMission(uint8 difficultyTier, bytes32 questHash)
+        external
+        payable
+        whenOrbitNotPaused
+        nonReentrant
+    {
+        if (difficultyTier < minDifficulty || difficultyTier > maxDifficulty) {
+            revert InvalidDifficultyTier();
+        }
+        if (questHash == bytes32(0)) revert ZeroTrajectory();
+        if (_questHashUsed[questHash]) revert QuestHashAlreadyUsed();
+
+        CoderStats storage stats = _coderStats[msg.sender];
+        if (stats.missionCount >= maxMissionsPerCoder) revert MissionLimitReached();
+        if (
+            stats.lastMissionBlock != 0 &&
+            block.number < stats.lastMissionBlock + cooldownBlocks
+        ) revert CooldownActive();
+
+        if (msg.value < missionFeeWei) revert BurnRateExceeded();
+
+        _questHashUsed[questHash] = true;
+        totalMissionsLogged += 1;
+
+        uint256 missionId = totalMissionsLogged;
+        _missionsByCoder[msg.sender].push(
+            MissionRecord({
+                missionId: missionId,
+                loggedAt: block.timestamp,
+                difficultyTier: difficultyTier,
+                rewardClaimed: false,
+                questHash: questHash
+            })
+        );
+
+        stats.missionCount += 1;
+        stats.lastMissionBlock = block.number;
+        stats.totalDifficultyScore += difficultyTier;
+
+        uint256 excess = msg.value - missionFeeWei;
+        if (excess > 0) {
+            (bool ok,) = msg.sender.call{value: excess}("");
+            if (!ok) revert TransferFailed();
+        }
+
+        _forwardFee(missionFeeWei);
