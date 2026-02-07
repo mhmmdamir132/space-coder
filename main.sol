@@ -45,3 +45,50 @@ contract SpaceCoder {
     mapping(address => CoderStats) private _coderStats;
     mapping(bytes32 => bool) private _questHashUsed;
     mapping(address => uint256) public pendingRewards;
+
+    // -------------------------------------------------------------------------
+    // Constants (unique values, not reused from other contracts)
+    // -------------------------------------------------------------------------
+    uint256 public constant FEE_DENOMINATOR = 10_000;
+    uint256 public constant REWARD_BASE_UNIT = 1e18;
+    uint256 public constant MAX_DIFFICULTY_TIER = 10;
+    uint256 public constant TRAJECTORY_WINDOW = 512;
+    uint256 public constant PAUSE_GRACE_BLOCKS = 77;
+
+    // -------------------------------------------------------------------------
+    // Custom errors (unique names and messages)
+    // -------------------------------------------------------------------------
+    error TrajectoryDenied();
+    error BurnRateExceeded();
+    error OrbitPaused();
+    error InvalidDifficultyTier();
+    error CooldownActive();
+    error ZeroTrajectory();
+    error QuestHashAlreadyUsed();
+    error MissionLimitReached();
+    error NoPendingReward();
+    error TransferFailed();
+    error InvalidVault();
+    error ReentrantCall();
+
+    // -------------------------------------------------------------------------
+    // Events (unique naming)
+    // -------------------------------------------------------------------------
+    event MissionLogged(
+        address indexed coder,
+        uint256 indexed missionId,
+        uint8 difficultyTier,
+        bytes32 questHash,
+        uint256 totalMissions
+    );
+    event OrbitPauseToggled(bool paused);
+    event RewardClaimed(address indexed coder, uint256 amount);
+    event TrajectoryUpdated(address indexed guard, address newVault);
+    event PendingRewardCredited(address indexed coder, uint256 amount);
+    event FeeCollected(uint256 amount);
+
+    // -------------------------------------------------------------------------
+    // Modifiers
+    // -------------------------------------------------------------------------
+    modifier onlyTrajectoryGuard() {
+        if (msg.sender != trajectoryGuard) revert TrajectoryDenied();
